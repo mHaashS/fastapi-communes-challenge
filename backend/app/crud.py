@@ -182,3 +182,15 @@ def coordonnees_commune(nom_commune: Optional[str] = None, code_postal: Optional
         print(f"Erreur de géocodage: {e}")
     
     return None
+
+def supprimer_commune(db: Session, nom_commune: str) -> None:
+    """
+    Supprime une commune de la base de données
+    
+    Args:
+        db: Session de base de données
+        commune: Commune à supprimer
+    """
+    commune = db.query(Commune).filter(Commune.nom_complet == nom_commune.upper()).first()
+    db.delete(commune)
+    db.commit()

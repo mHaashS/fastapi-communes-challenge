@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from .database import create_tables, get_db
-from .crud import get_commune_by_name, get_communes_by_departement, create_or_update_commune, get_communes_by_code_postal
+from .crud import get_commune_by_name, get_communes_by_departement, create_or_update_commune, get_communes_by_code_postal, supprimer_commune
 from .schemas import CommuneBase, CommuneResponse
 
 app = FastAPI()
@@ -42,3 +42,8 @@ async def create_update_commune(commune: CommuneBase, db: Session = Depends(get_
         return create_or_update_commune(db, commune)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur lors de la création/mise à jour: {str(e)}")
+
+@app.delete("/communes/{nom}")
+async def delete_commune(nom: str, db: Session = Depends(get_db)):
+    supprimer_commune(db, nom)
+    return {"message": "Commune supprimée avec succès"}
