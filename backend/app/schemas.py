@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 
 class CommuneBase(BaseModel):
     """Schéma de base pour une commune"""
@@ -9,6 +10,8 @@ class CommuneBase(BaseModel):
 class CommuneResponse(CommuneBase):
     """Schéma de réponse pour une commune"""
     id: int = Field(..., description="Identifiant unique de la commune")
+    latitude: Optional[float] = Field(None, description="Latitude GPS")
+    longitude: Optional[float] = Field(None, description="Longitude GPS")
     
     class Config:
         from_attributes = True

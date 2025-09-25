@@ -6,3 +6,4 @@ pydantic
 alembic
 pandas
 python-dotenv
+requests
