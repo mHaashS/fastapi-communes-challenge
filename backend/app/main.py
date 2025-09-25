@@ -45,5 +45,10 @@ async def create_update_commune(commune: CommuneBase, db: Session = Depends(get_
 
 @app.delete("/communes/{nom}")
 async def delete_commune(nom: str, db: Session = Depends(get_db)):
-    supprimer_commune(db, nom)
-    return {"message": "Commune supprimée avec succès"}
+    try:
+        commune = supprimer_commune(db, nom)
+        if not commune:
+            raise HTTPException(status_code=404, detail="Commune non trouvée")
+        return {"message": "Commune supprimée avec succès"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la suppression: {str(e)}")

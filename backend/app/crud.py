@@ -183,7 +183,7 @@ def coordonnees_commune(nom_commune: Optional[str] = None, code_postal: Optional
     
     return None
 
-def supprimer_commune(db: Session, nom_commune: str) -> None:
+def supprimer_commune(db: Session, nom_commune: str) -> Optional[Commune]:
     """
     Supprime une commune de la base de données
     
@@ -192,5 +192,10 @@ def supprimer_commune(db: Session, nom_commune: str) -> None:
         commune: Commune à supprimer
     """
     commune = db.query(Commune).filter(Commune.nom_complet == nom_commune.upper()).first()
+
+    if not commune:
+        return None
+
     db.delete(commune)
     db.commit()
+    return commune
