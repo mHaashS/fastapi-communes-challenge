@@ -19,5 +19,18 @@ services:
     depends_on:
       - postgres
 
+  nominatim:
+    image: mediagis/nominatim:4.0
+    ports:
+      - "8080:8080"
+    environment:
+      - PBF_URL=https://download.geofabrik.de/europe/france-latest.osm.pbf
+      - REPLICATION_URL=https://download.geofabrik.de/europe/france-updates
+      - IMPORT_WIKIPEDIA=false
+      - IMPORT_TIGER=false
+    volumes:
+      - nominatim_data:/var/lib/postgresql/14/main
+
 volumes:
-  postgres_data:
+  postgres_data: 
+  nominatim_data: 
