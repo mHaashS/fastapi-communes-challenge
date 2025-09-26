@@ -150,6 +150,7 @@ def coordonnees_commune(nom_commune: Optional[str] = None, code_postal: Optional
 
     try:
         url = "https://nominatim.openstreetmap.org/search"
+        #url = "http://nominatim:8080/search"
 
         query_parts = []
         if nom_commune:
@@ -199,3 +200,33 @@ def supprimer_commune(db: Session, nom_commune: str) -> Optional[Commune]:
     db.delete(commune)
     db.commit()
     return commune
+
+
+"""
+Fonction pour récuperer les communes les plus proches
+Récupère les communes du département et des départements voisins
+Les départements voisins seraient stockés dans un dictionnaire du type:
+{  
+    "69": ["01","38","42","71"],
+    "01": ["69", "71", "38", "74", "73"],
+    etc...
+}
+Récupere les voisins avec 
+communes_meme_departement = db.query(Commune).filter(
+    Commune.id != commune_ref.id,
+    Commune.departement.in_(voisins)   # <- utiliser in_() ici
+).all()
+
+calcul des coordonnées pour chaque commune du département et des départements voisins
+En france en moyenne 4 départements voisins par département et 300 communes par département
+Temps moyen d'une requete nominatim pour une commune : 100ms
+100ms * 300 communes * 4 départements voisins = 120000ms = 120s = 2 minutes
+ajout en bdd les coordonées de chaque commune calculées
+
+Calcul de la distance avec toutes les autres communes avec la formule de haversine
+R = 6371 km
+d = 2 * R * arcsin(sqrt(sin²((lat2-lat1)/2) + cos(lat1) * cos(lat2) * sin²((lon2-lon1)/2)))
+
+Une fois que j'ai les distances de toutes les communes du département et des départements voisins
+je trie les communes par distance et je retourne les n communes les plus proches (n = nombre choisi par l'utilisateur)
+"""

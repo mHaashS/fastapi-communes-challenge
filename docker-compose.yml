@@ -28,6 +28,9 @@ services:
       - REPLICATION_URL=https://download.geofabrik.de/europe/france-updates
       - IMPORT_WIKIPEDIA=false
       - IMPORT_TIGER=false
+      - NOMINATIM_INDEXING_RANKS=8-10
+      - NOMINATIM_IMPORT_RANKS=8-10
+      - NOMINATIM_BOUNDARIES_RANKS=8-10
     volumes:
       - nominatim_data:/var/lib/postgresql/14/main
 
