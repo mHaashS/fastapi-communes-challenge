@@ -49,3 +49,4 @@ docker-compose exec fastapi python backend/etl/pipeline.py
 | `GET` | `/communes/code_postal/{code_postal}` | Communes par code postal |
 | `POST` | `/communes` | Créer/modifier une commune |
 | `DELETE` | `/communes/{nom}` | Supprimer une commune |
+| `GET` | `/communes/{nom}/proches` | Rechercher les communes les plus proches |
