@@ -1,6 +1,9 @@
 from sqlalchemy.orm import Session
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple
 import requests
+import math
+import json
+import os
 from .models import Commune
 from .schemas import CommuneBase
 
@@ -149,8 +152,8 @@ def coordonnees_commune(nom_commune: Optional[str] = None, code_postal: Optional
         return None
 
     try:
-        url = "https://nominatim.openstreetmap.org/search"
-        #url = "http://nominatim:8080/search"
+        #url = "https://nominatim.openstreetmap.org/search"
+        url = "http://nominatim:8080/search"
 
         query_parts = []
         if nom_commune:
@@ -207,8 +210,8 @@ Fonction pour récuperer les communes les plus proches
 Récupère les communes du département et des départements voisins
 Les départements voisins seraient stockés dans un dictionnaire du type:
 {  
-    "69": ["01","38","42","71"],
-    "01": ["69", "71", "38", "74", "73"],
+    "69": ["69","01","38","42","71"],
+    "01": ["01","69", "71", "38", "74", "73"],
     etc...
 }
 Récupere les voisins avec 
@@ -230,3 +233,119 @@ d = 2 * R * arcsin(sqrt(sin²((lat2-lat1)/2) + cos(lat1) * cos(lat2) * sin²((lo
 Une fois que j'ai les distances de toutes les communes du département et des départements voisins
 je trie les communes par distance et je retourne les n communes les plus proches (n = nombre choisi par l'utilisateur)
 """
+
+def calculer_distance_haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """
+    Calcule la distance entre deux points GPS en utilisant la formule de Haversine
+    Args:
+        lat1: Latitude du premier point
+        lon1: Longitude du premier point
+        lat2: Latitude du deuxième point
+        lon2: Longitude du deuxième point
+    Returns:
+        Distance en kilomètres
+    """
+    R = 6371.0  # Rayon de la Terre en km
+    
+    # Conversion en radians
+    lat1_rad = math.radians(lat1)
+    lon1_rad = math.radians(lon1)
+    lat2_rad = math.radians(lat2)
+    lon2_rad = math.radians(lon2)
+    
+    # Différences
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+    
+    # Formule de Haversine
+    a = math.sin(dlat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon/2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    
+    return R * c
+
+
+def charger_departements_voisins() -> Dict[str, List[str]]:
+    """
+    Charge le fichier JSON des départements voisins
+    Args:
+        None
+    Returns:
+        Dict[str, List[str]]
+    """
+    # Chemin vers le fichier JSON (à partir du répertoire racine du projet)
+    json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "departements_voisins.json")
+    
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"Fichier {json_path} non trouvé")
+        return {}
+    except json.JSONDecodeError as e:
+        print(f"Erreur de lecture du JSON: {e}")
+        return {}
+
+def get_communes_proches(db: Session, nom_commune: str, nombre: int = 5) -> List[Tuple[Commune, float]]:
+    """
+    Récupère les x communes les plus proches d'une commune donnée
+    Récupère les communes du département et des départements voisins
+    Args:
+        db: Session de base de données
+        nom_commune: Nom de la commune
+        nombre: Nombre de communes à retourner
+    Returns:
+        List[Tuple[Commune, float]]
+    """
+    # Récupérer la commune de référence
+    commune_ref = get_commune_by_name(db, nom_commune)
+    if not commune_ref:
+        raise ValueError(f"Commune '{nom_commune}' non trouvée")
+    
+    if commune_ref.latitude is None or commune_ref.longitude is None:
+        raise ValueError(f"Coordonnées GPS manquantes pour la commune '{nom_commune}'")
+    
+    # Charger les départements voisins
+    departements_voisins = charger_departements_voisins()
+    departements_a_chercher = departements_voisins.get(commune_ref.departement, [commune_ref.departement])
+    
+    print(f"Recherche dans les départements: {departements_a_chercher}")
+    
+    # Récupérer toutes les communes des départements voisins
+    communes_voisines = db.query(Commune).filter(
+        Commune.id != commune_ref.id,
+        Commune.departement.in_(departements_a_chercher)
+    ).all()
+    
+    communes_avec_distance = []
+    
+    # Calculer les coordonnées pour chaque commune et la distance
+    for i, commune in enumerate(communes_voisines):
+        
+        # Récupérer les coordonnées si elles manquent
+        if commune.latitude is None or commune.longitude is None:
+            coordonnees = coordonnees_commune(
+                nom_commune=commune.nom_complet,
+                code_postal=commune.code_postal
+            )
+            if coordonnees:
+                commune.latitude = coordonnees['latitude']
+                commune.longitude = coordonnees['longitude']
+                db.commit()
+                db.refresh(commune)
+                print(f"Coordonnées récupérées: lat={coordonnees['latitude']}, lon={coordonnees['longitude']}")
+            else:
+                print(f"Impossible de récupérer les coordonnées")
+                continue  # Passer à la commune suivante
+        
+        # Calculer la distance avec la commune de référence
+        if commune.latitude is not None and commune.longitude is not None:
+            distance = calculer_distance_haversine(
+                commune_ref.latitude, commune_ref.longitude,
+                commune.latitude, commune.longitude
+            )
+            communes_avec_distance.append((commune, distance))
+    
+    # Trier par distance croissante et retourner les n communes les plus proches
+    communes_avec_distance.sort(key=lambda x: x[1])
+    
+    return communes_avec_distance[:nombre]

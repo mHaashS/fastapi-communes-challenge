@@ -15,3 +15,11 @@ class CommuneResponse(CommuneBase):
     
     class Config:
         from_attributes = True
+
+class CommuneAvecDistance(BaseModel):
+    """Schéma de réponse pour une commune avec sa distance"""
+    commune: CommuneResponse = Field(..., description="Informations de la commune")
+    distance_km: float = Field(..., description="Distance en kilomètres", ge=0)
+    
+    class Config:
+        from_attributes = True

@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 from .database import create_tables, get_db
-from .crud import get_commune_by_name, get_communes_by_departement, create_or_update_commune, get_communes_by_code_postal, supprimer_commune
-from .schemas import CommuneBase, CommuneResponse
+from .crud import get_commune_by_name, get_communes_by_departement, create_or_update_commune, get_communes_by_code_postal, supprimer_commune, get_communes_proches
+from .schemas import CommuneBase, CommuneResponse, CommuneAvecDistance
 
 app = FastAPI()
 
@@ -52,3 +52,20 @@ async def delete_commune(nom: str, db: Session = Depends(get_db)):
         return {"message": "Commune supprimée avec succès"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur lors de la suppression: {str(e)}")
+
+@app.get("/communes/{nom}/proches", response_model=List[CommuneAvecDistance])
+async def get_communes_proches_endpoint(
+    nom: str, 
+    nombre: int = Query(5, ge=1, le=50, description="Nombre de communes proches à retourner"),
+    db: Session = Depends(get_db)
+):
+    try:
+        communes_avec_distance = get_communes_proches(db, nom, nombre)
+        return [
+            CommuneAvecDistance(commune=commune, distance_km=distance)
+            for commune, distance in communes_avec_distance
+        ]
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la recherche: {str(e)}")
